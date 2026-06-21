@@ -10,6 +10,9 @@ This is built for the N7 Racing Team, who run STM32H7 boards
 (repo N7-Racing-Team/Pole_data). It extends an earlier tool that generates C
 register headers from datasheet memory maps.
 
+Live demo: https://huggingface.co/spaces/sami-ennedoui/stm32-datasheet-rag
+The home page is a small interface and the interactive API is on /docs.
+
 ## What it does
 
 - Ingests a real public PDF: STM32H7 reference manual RM0433 (about 3300 pages).
