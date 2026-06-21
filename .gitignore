@@ -1,0 +1,24 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Secrets and tokens
+.env
+*.env
+!.env.example
+
+# Vector store (rebuilt by ingest)
+vectorstore/
+
+# Downloaded datasheet (large, fetch with scripts/download_pdf.sh)
+data/*.pdf
+
+# Model cache
+.cache/
+
+# OS
+.DS_Store

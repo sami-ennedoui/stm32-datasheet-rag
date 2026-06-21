@@ -1,0 +1,22 @@
+Reading /home/samiennedoui/dev/stm32-datasheet-rag/data/rm0433.pdf ...
+  3353 pages
+  6608 chunks
+Loading embedding model sentence-transformers/all-MiniLM-L6-v2 ...
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 5288.77it/s]
+Embedding chunks (this can take a few minutes the first time) ...
+Writing to vector store ...
+  stored 500/6608
+  stored 1000/6608
+  stored 1500/6608
+  stored 2000/6608
+  stored 2500/6608
+  stored 3000/6608
+  stored 3500/6608
+  stored 4000/6608
+  stored 4500/6608
+  stored 5000/6608
+  stored 5500/6608
+  stored 6000/6608
+  stored 6500/6608
+  stored 6608/6608
+Done. Collection 'stm32h7_docs' has 6608 chunks.

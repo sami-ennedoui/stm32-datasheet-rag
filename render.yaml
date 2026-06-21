@@ -1,0 +1,32 @@
+# One click deploy config for Render (https://render.com).
+# Sami: connect your GitHub account, point Render at this repo, and Render
+# reads this file. You must add HF_TOKEN as a secret in the Render dashboard.
+#
+# Important: the vector store is built by the ingest step. A persistent disk
+# keeps it between restarts. The first boot runs ingest, which downloads the
+# PDF and the embedding model, so the first start is slow.
+services:
+  - type: web
+    name: stm32-datasheet-rag
+    runtime: docker
+    plan: standard            # torch needs more than the free tier memory
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: HF_TOKEN
+        sync: false           # set this secret in the Render dashboard
+      - key: PORT
+        value: 8000
+      - key: HF_HOME
+        value: /var/data/hf
+      - key: STM32_PDF_PATH
+        value: /var/data/rm0433.pdf
+    disk:
+      name: stm32-data
+      mountPath: /var/data
+      sizeGB: 5
+    # Build the vector store on first boot, then start the API.
+    dockerCommand: >
+      sh -c "test -f /var/data/rm0433.pdf || ./scripts/download_pdf.sh;
+      test -d /var/data/vectorstore || STM32_VECTOR_DIR=/var/data/vectorstore python -m app.ingest;
+      uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
