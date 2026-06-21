@@ -1,10 +1,10 @@
 # One click deploy config for Render (https://render.com).
-# Sami: connect your GitHub account, point Render at this repo, and Render
-# reads this file. You must add HF_TOKEN as a secret in the Render dashboard.
+# Point Render at this repo as a Blueprint and it reads this file. Add HF_TOKEN
+# as a secret in the Render dashboard.
 #
-# Important: the vector store is built by the ingest step. A persistent disk
-# keeps it between restarts. The first boot runs ingest, which downloads the
-# PDF and the embedding model, so the first start is slow.
+# The vector store is built by the ingest step. A persistent disk keeps it
+# between restarts. The first boot runs ingest, which downloads the PDF and the
+# embedding model, so the first start is slow.
 services:
   - type: web
     name: stm32-datasheet-rag

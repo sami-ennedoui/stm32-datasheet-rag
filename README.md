@@ -10,7 +10,7 @@ This is built for the N7 Racing Team, who run STM32H7 boards
 (repo N7-Racing-Team/Pole_data). It extends an earlier tool that generates C
 register headers from datasheet memory maps.
 
-Live demo: https://huggingface.co/spaces/sami-ennedoui/stm32-datasheet-rag
+Live demo: https://sami-ennedoui-stm32-datasheet-rag.hf.space
 The home page is a small interface and the interactive API is on /docs.
 
 ## What it does
@@ -112,11 +112,11 @@ docker run --rm -p 8000:8000 -e HF_TOKEN=your_token \
 
 ## Deploy to the cloud (Render)
 
-The repo ships a `render.yaml`. Steps for Sami:
+The repo ships a `render.yaml`. To deploy:
 
-1. Create a free account at https://render.com and connect your GitHub.
+1. Create a free account at https://render.com and connect a GitHub account.
 2. New, then Blueprint, then pick this repo. Render reads `render.yaml`.
-3. In the service settings add the secret `HF_TOKEN` with your token.
+3. In the service settings add the secret `HF_TOKEN`.
 4. Deploy. The first boot downloads the PDF and builds the vector store on the
    attached disk, so it is slow the first time. Later boots are fast.
 5. Test: `curl https://YOUR-SERVICE.onrender.com/health`.
