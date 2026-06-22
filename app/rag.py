@@ -92,10 +92,10 @@ def _build_prompt(question: str, chunks: list[Retrieved]) -> str:
     )
 
 
-def answer(question: str, top_k: int | None = None) -> dict:
+def answer(question: str, top_k: int | None = None, token: str | None = None) -> dict:
     chunks = retrieve(question, top_k=top_k)
     prompt = _build_prompt(question, chunks)
-    text = llm.chat(_SYSTEM, prompt, model=config.ANSWER_MODEL)
+    text = llm.chat(_SYSTEM, prompt, model=config.ANSWER_MODEL, token=token)
     citations = [
         Citation(
             page=c.page,
@@ -121,7 +121,7 @@ _CODE_SYSTEM = (
 )
 
 
-def draft_code(question: str, top_k: int | None = None) -> dict:
+def draft_code(question: str, top_k: int | None = None, token: str | None = None) -> dict:
     """Bonus endpoint: draft a small C register configuration snippet.
 
     Reuses the retrieved datasheet context and the Qwen coder model, the same
@@ -130,7 +130,7 @@ def draft_code(question: str, top_k: int | None = None) -> dict:
     chunks = retrieve(question, top_k=top_k)
     prompt = _build_prompt(question, chunks)
     text = llm.chat(
-        _CODE_SYSTEM, prompt, model=config.CODE_MODEL, max_tokens=900
+        _CODE_SYSTEM, prompt, model=config.CODE_MODEL, max_tokens=900, token=token
     )
     citations = [
         Citation(

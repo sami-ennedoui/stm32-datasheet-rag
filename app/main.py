@@ -51,6 +51,17 @@ INDEX_HTML = """<!doctype html>
   Le service retrouve les passages les plus proches dans le manuel et demande a
   un modele de langage de repondre uniquement a partir de ces passages. Chaque
   reponse cite les pages d'origine.</p>
+
+  <div id="tokenbox" style="background:#00000008; padding:.6rem .8rem; border-radius:6px; margin:.7rem 0;">
+    <label for="tok" style="font-size:.9rem; font-weight:600;">Token Hugging Face (optionnel)</label>
+    <input id="tok" type="password" placeholder="hf_..." autocomplete="off"
+           style="width:100%; box-sizing:border-box; padding:.45rem; font-size:.95rem; margin-top:.3rem;">
+    <p class="muted" style="margin:.4rem 0 0;">Cette demo partage un quota d'inference gratuit
+    qui peut etre epuise, surtout l'agent qui fait plusieurs appels par requete. Pour l'experience
+    complete, colle ton propre token HF: il n'est utilise que pour ta requete et n'est jamais stocke.
+    Tu peux en creer un sur <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a>.</p>
+  </div>
+
   <textarea id="q" rows="3" placeholder="How is the USART baud rate configured on STM32H7?"></textarea>
   <div class="row">
     <label><input type="radio" name="mode" value="ask" checked> Repondre</label>
@@ -86,9 +97,12 @@ async function run() {
   $("go").disabled = true; $("status").textContent = "Recherche et generation...";
   $("answer").innerHTML = ""; $("cites").innerHTML = "";
   try {
+    const tok = $("tok").value.trim();
+    const payload = {question: q};
+    if (tok) payload.hf_token = tok;
     const r = await fetch("/" + mode, {
       method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({question: q})
+      body: JSON.stringify(payload)
     });
     const data = await r.json();
     if (!r.ok) { $("status").textContent = "Erreur: " + (data.detail || r.status); return; }
@@ -120,9 +134,12 @@ async function runAgent() {
   $("agentStatus").textContent = "L'agent cherche dans le manuel et itere, cela peut prendre une minute...";
   $("agentOut").innerHTML = ""; $("agentCites").innerHTML = "";
   try {
+    const tok = $("tok").value.trim();
+    const payload = {peripheral: p};
+    if (tok) payload.hf_token = tok;
     const r = await fetch("/agent/header", {
       method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({peripheral: p})
+      body: JSON.stringify(payload)
     });
     const data = await r.json();
     if (!r.ok) { $("agentStatus").textContent = "Erreur: " + (data.detail || r.status); return; }
@@ -159,6 +176,10 @@ def index():
 class AskRequest(BaseModel):
     question: str = Field(..., min_length=3, examples=["How is the USART baud rate configured on STM32H7?"])
     top_k: int | None = Field(default=None, ge=1, le=15)
+    hf_token: str | None = Field(
+        default=None,
+        description="Optional. Your own Hugging Face token, used only for this request and never stored.",
+    )
 
 
 class Citation(BaseModel):
@@ -196,7 +217,7 @@ def health():
 @app.post("/ask", response_model=AskResponse)
 def ask(req: AskRequest):
     try:
-        return rag.answer(req.question, top_k=req.top_k)
+        return rag.answer(req.question, top_k=req.top_k, token=req.hf_token)
     except LLMError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     except RuntimeError as exc:
@@ -206,7 +227,7 @@ def ask(req: AskRequest):
 @app.post("/draft-code", response_model=CodeResponse)
 def draft_code(req: AskRequest):
     try:
-        return rag.draft_code(req.question, top_k=req.top_k)
+        return rag.draft_code(req.question, top_k=req.top_k, token=req.hf_token)
     except LLMError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     except RuntimeError as exc:
@@ -216,6 +237,10 @@ def draft_code(req: AskRequest):
 class AgentHeaderRequest(BaseModel):
     peripheral: str = Field(..., min_length=2, max_length=40, examples=["USART1"])
     max_steps: int | None = Field(default=8, ge=1, le=12)
+    hf_token: str | None = Field(
+        default=None,
+        description="Optional. Your own Hugging Face token, used only for this request and never stored.",
+    )
 
 
 class AgentHeaderResponse(BaseModel):
@@ -236,7 +261,7 @@ def agent_header(req: AgentHeaderRequest):
     from .agent import draft_header
 
     try:
-        result = draft_header(req.peripheral, max_steps=req.max_steps or 8)
+        result = draft_header(req.peripheral, max_steps=req.max_steps or 8, token=req.hf_token)
     except LLMError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     except RuntimeError as exc:

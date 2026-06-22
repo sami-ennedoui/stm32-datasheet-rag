@@ -152,15 +152,19 @@ def draft_header(
     model_id: str | None = None,
     max_steps: int = 8,
     top_k: int = 8,
+    token: str | None = None,
 ) -> dict:
     """Run the agent and return the header plus the datasheet pages it used."""
-    if not config.HF_TOKEN:
-        raise RuntimeError("HF_TOKEN is not set. Put it in a .env file. See README.")
+    tok = (token or "").strip() or config.HF_TOKEN
+    if not tok:
+        raise RuntimeError(
+            "HF_TOKEN is not set. Put it in a .env file, or pass your own token. See README."
+        )
 
     from smolagents import CodeAgent, InferenceClientModel
 
     session = AgentSession()
-    model = InferenceClientModel(model_id=model_id or config.CODE_MODEL, token=config.HF_TOKEN)
+    model = InferenceClientModel(model_id=model_id or config.CODE_MODEL, token=tok)
     agent = CodeAgent(
         tools=[SearchDatasheetTool(session, top_k=top_k), BuildRegisterHeaderTool(session)],
         model=model,

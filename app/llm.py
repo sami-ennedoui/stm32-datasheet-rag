@@ -12,15 +12,26 @@ class LLMError(RuntimeError):
     pass
 
 
-def _client():
-    from huggingface_hub import InferenceClient
+def _resolve_token(token: str | None) -> str:
+    """Pick the token to use: a caller supplied one, else the configured one.
 
-    if not config.HF_TOKEN:
+    A visitor can pass their own token through the demo so a request uses their
+    own inference quota. A blank value falls back to the configured token.
+    """
+    cleaned = (token or "").strip()
+    tok = cleaned or config.HF_TOKEN
+    if not tok:
         raise LLMError(
-            "HF_TOKEN is not set. Put it in a .env file or the environment. "
+            "HF_TOKEN is not set. Put it in a .env file, or pass your own token. "
             "See README."
         )
-    return InferenceClient(token=config.HF_TOKEN)
+    return tok
+
+
+def _client(token: str | None = None):
+    from huggingface_hub import InferenceClient
+
+    return InferenceClient(token=_resolve_token(token))
 
 
 def chat(
@@ -29,10 +40,11 @@ def chat(
     model: str | None = None,
     max_tokens: int = 700,
     temperature: float = 0.1,
+    token: str | None = None,
 ) -> str:
     """Call the HF chat completion endpoint and return the text answer."""
     model = model or config.ANSWER_MODEL
-    client = _client()
+    client = _client(token)
     try:
         response = client.chat_completion(
             model=model,

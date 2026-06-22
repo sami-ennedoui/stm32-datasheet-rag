@@ -13,6 +13,12 @@ register headers from datasheet memory maps.
 Live demo: https://sami-ennedoui-stm32-datasheet-rag.hf.space
 The home page is a small interface and the interactive API is on /docs.
 
+The demo shares a free Hugging Face inference quota that can run out, especially
+the agent, which makes several model calls per request. The page has an optional
+token field: paste your own Hugging Face token to use your own quota. It is used
+only for that request and never stored. The `/ask` and `/agent/header` endpoints
+also accept an optional `hf_token` field for the same reason.
+
 ## What it does
 
 - Ingests a real public PDF: STM32H7 reference manual RM0433 (about 3300 pages).
