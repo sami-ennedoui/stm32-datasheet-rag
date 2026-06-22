@@ -236,7 +236,7 @@ def agent_header(req: AgentHeaderRequest):
     from .agent import draft_header
 
     try:
-        return draft_header(req.peripheral, max_steps=req.max_steps or 8)
+        result = draft_header(req.peripheral, max_steps=req.max_steps or 8)
     except LLMError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     except RuntimeError as exc:
@@ -244,4 +244,25 @@ def agent_header(req: AgentHeaderRequest):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:  # the agent loop can fail for model side reasons
-        raise HTTPException(status_code=500, detail=f"agent failed: {exc}")
+        msg = str(exc)
+        if "402" in msg or "Payment Required" in msg or "credits" in msg.lower():
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "Quota d'inference Hugging Face epuise. L'agent fait plusieurs "
+                    "appels au modele par requete, ce qui consomme vite le tier "
+                    "gratuit. Reessaie apres la reinitialisation mensuelle."
+                ),
+            )
+        raise HTTPException(status_code=500, detail=f"agent failed: {msg}")
+
+    if not result["header"].lstrip().startswith("#ifndef"):
+        # The agent ran but did not converge to a built header within max_steps.
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "L'agent n'a pas converge vers un en-tete valide dans le budget "
+                "d'etapes. Reessaie, au besoin avec un autre peripherique."
+            ),
+        )
+    return result
