@@ -4,5 +4,6 @@ pymupdf>=1.24
 fastapi>=0.110
 uvicorn[standard]>=0.29
 huggingface-hub>=0.25
+smolagents>=1.20
 python-dotenv
 pydantic>=2

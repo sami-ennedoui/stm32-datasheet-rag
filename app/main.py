@@ -1,9 +1,10 @@
 """FastAPI service for the STM32 datasheet RAG assistant.
 
 Endpoints:
-  GET  /health        liveness and chunk count
-  POST /ask           {question} -> {answer, citations}
-  POST /draft-code    {question} -> {code, citations}   (bonus)
+  GET  /health         liveness and chunk count
+  POST /ask            {question} -> {answer, citations}
+  POST /draft-code     {question} -> {code, citations}   (bonus)
+  POST /agent/header   {peripheral} -> {header, citations}  (smolagents agent)
 """
 from __future__ import annotations
 
@@ -59,6 +60,21 @@ INDEX_HTML = """<!doctype html>
   </div>
   <div id="answer"></div>
   <div id="cites"></div>
+
+  <h2>Brouillon d'en-tete C de registres</h2>
+  <p class="lead">Donne le nom d'un peripherique STM32H7. Un agent smolagents
+  cherche sa table de registres dans le manuel, lit les offsets, puis un outil
+  deterministe calcule les adresses absolues et rend l'en-tete C. Le modele ne
+  calcule jamais une adresse, il lit et orchestre seulement.</p>
+  <div class="row">
+    <input id="periph" type="text" placeholder="USART1"
+           style="flex:1; min-width:12rem; padding:.5rem; font-size:1rem;">
+    <button id="goAgent">Generer l'en-tete</button>
+    <span id="agentStatus" class="muted"></span>
+  </div>
+  <div id="agentOut"></div>
+  <div id="agentCites"></div>
+
   <p class="muted">API interactive sur <a href="/docs">/docs</a>.
   Code source: <a href="https://github.com/sami-ennedoui/stm32-datasheet-rag">GitHub</a>.</p>
 <script>
@@ -96,6 +112,39 @@ async function run() {
   }
 }
 $("go").addEventListener("click", run);
+
+async function runAgent() {
+  const p = $("periph").value.trim();
+  if (p.length < 2) { $("agentStatus").textContent = "Donne un nom de peripherique."; return; }
+  $("goAgent").disabled = true;
+  $("agentStatus").textContent = "L'agent cherche dans le manuel et itere, cela peut prendre une minute...";
+  $("agentOut").innerHTML = ""; $("agentCites").innerHTML = "";
+  try {
+    const r = await fetch("/agent/header", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({peripheral: p})
+    });
+    const data = await r.json();
+    if (!r.ok) { $("agentStatus").textContent = "Erreur: " + (data.detail || r.status); return; }
+    const pre = document.createElement("pre"); pre.textContent = data.header;
+    $("agentOut").appendChild(pre);
+    if (data.citations && data.citations.length) {
+      let html = "<table><thead><tr><th>Page</th><th>Score</th><th>Extrait</th></tr></thead><tbody>";
+      for (const c of data.citations) {
+        const prev = (c.preview || "").replace(/</g, "&lt;");
+        html += `<tr><td>${c.page}</td><td>${c.score}</td><td>${prev}</td></tr>`;
+      }
+      html += "</tbody></table>";
+      $("agentCites").innerHTML = html;
+    }
+    $("agentStatus").textContent = "Verifie toujours les offsets contre le manuel officiel avant usage.";
+  } catch (e) {
+    $("agentStatus").textContent = "Erreur reseau: " + e;
+  } finally {
+    $("goAgent").disabled = false;
+  }
+}
+$("goAgent").addEventListener("click", runAgent);
 </script>
 </body>
 </html>
@@ -162,3 +211,37 @@ def draft_code(req: AskRequest):
         raise HTTPException(status_code=502, detail=str(exc))
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
+
+
+class AgentHeaderRequest(BaseModel):
+    peripheral: str = Field(..., min_length=2, max_length=40, examples=["USART1"])
+    max_steps: int | None = Field(default=8, ge=1, le=12)
+
+
+class AgentHeaderResponse(BaseModel):
+    peripheral: str
+    header: str
+    citations: list[Citation]
+    agent_answer: str
+
+
+@app.post("/agent/header", response_model=AgentHeaderResponse)
+def agent_header(req: AgentHeaderRequest):
+    """Run the smolagents agent: search the datasheet, then build a cited C header.
+
+    The agent reads RM0433 passages and proposes register names and relative
+    offsets. The deterministic build step computes every absolute address and
+    validates the data, so the model never emits an address itself.
+    """
+    from .agent import draft_header
+
+    try:
+        return draft_header(req.peripheral, max_steps=req.max_steps or 8)
+    except LLMError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:  # the agent loop can fail for model side reasons
+        raise HTTPException(status_code=500, detail=f"agent failed: {exc}")

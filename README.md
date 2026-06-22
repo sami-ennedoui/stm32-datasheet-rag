@@ -93,8 +93,39 @@ scripts/ask.sh "How is the USART baud rate configured on STM32H7?"
 - `POST /draft-code` with `{"question": "..."}` returns `{"code", "citations"}`.
   This bonus endpoint reuses the retrieved context and a Qwen coder model to
   draft a small C register configuration snippet.
+- `POST /agent/header` with `{"peripheral": "USART1"}` returns
+  `{"header", "citations", "agent_answer"}`. This runs the smolagents agent
+  described below.
 
 A sample real answer and its citations are saved under `examples/`.
+
+## Agent: draft a cited C register header
+
+This project absorbs an earlier tool that generated C register headers from a
+datasheet memory map. Here it becomes a real tool using agent that grounds its
+work in the actual reference manual.
+
+Given a peripheral name, a smolagents `CodeAgent` runs a short loop with two
+tools:
+
+- `search_datasheet(query)` reuses the RAG retrieval to pull the most relevant
+  RM0433 passages, each tagged with its page number.
+- `build_register_header(peripheral, base_address, registers)` is deterministic.
+  It validates every name as a C identifier, rejects conflicting duplicates, and
+  computes each absolute address as base plus offset.
+
+The model reads the pages and proposes register names and offsets relative to
+the base. It never computes an absolute address: that arithmetic stays in
+`app/regtools.py`, in plain Python, because a hallucinated address can brick
+hardware. The header it returns cites the datasheet pages the agent consulted.
+
+```bash
+python -m app.agent USART1
+```
+
+The result is a draft. Always confirm the offsets against the official ST
+document before flashing hardware. The model can misread a value in a dense
+table, but the addresses are always computed and validated, never invented.
 
 ## Run with Docker
 
